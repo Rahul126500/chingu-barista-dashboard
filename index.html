@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CHINGU Coffee — Barista Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+    }
+
+    /* ── Header ── */
+    header {
+      background: #1a1a1a;
+      color: #fff;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+    header .subtitle { font-size: 12px; color: #aaa; margin-top: 2px; }
+    #refresh-status { font-size: 12px; color: #888; text-align: right; }
+    #refresh-status span { display: block; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      background: #fff;
+      border-bottom: 2px solid #eee;
+      position: sticky;
+      top: 61px;
+      z-index: 99;
+    }
+    .tab {
+      flex: 1;
+      padding: 14px;
+      text-align: center;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #888;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; }
+    .tab .badge {
+      display: inline-block;
+      background: #e74c3c;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 10px;
+      padding: 1px 7px;
+      margin-left: 6px;
+    }
+
+    /* ── Panels ── */
+    .panel { display: none; padding: 16px; }
+    .panel.active { display: block; }
+
+    /* ── Order Cards ── */
+    .order-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-left: 5px solid #ccc;
+    }
+    .order-card.status-New    { border-left-color: #f39c12; }
+    .order-card.status-In-Progress { border-left-color: #2980b9; }
+    .order-card.status-Done   { border-left-color: #27ae60; opacity: 0.6; }
+
+    .order-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    .order-name { font-size: 18px; font-weight: 700; }
+    .order-time { font-size: 12px; color: #888; text-align: right; }
+    .order-time .eta { font-size: 13px; font-weight: 600; color: #2980b9; }
+
+    .order-items {
+      font-size: 15px;
+      color: #333;
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    .order-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .order-total { font-size: 17px; font-weight: 700; color: #1a1a1a; }
+    .order-status-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .badge-New            { background: #fef3cd; color: #856404; }
+    .badge-In-Progress    { background: #cce5ff; color: #004085; }
+    .badge-Done           { background: #d4edda; color: #155724; }
+
+    .order-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:active { opacity: 0.7; }
+    .btn-start  { background: #2980b9; color: #fff; }
+    .btn-done   { background: #27ae60; color: #fff; }
+    .btn-undo   { background: #eee; color: #555; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #aaa;
+    }
+    .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty-state p { font-size: 16px; }
+
+    /* ── Section headers ── */
+    .section-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin: 20px 0 10px;
+    }
+    .section-label:first-child { margin-top: 0; }
+
+    /* ── Menu Items ── */
+    .menu-category { margin-bottom: 24px; }
+    .category-name {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #eee;
+    }
+    .menu-item {
+      background: #fff;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .menu-item.unavailable { opacity: 0.5; }
+    .menu-item-left .name { font-size: 15px; font-weight: 600; }
+    .menu-item-left .price {
+      font-size: 13px;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    /* Toggle switch */
+    .toggle { position: relative; width: 50px; height: 28px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #ccc;
+      border-radius: 28px;
+      transition: 0.3s;
+    }
+    .slider:before {
+      content: "";
+      position: absolute;
+      height: 22px; width: 22px;
+      left: 3px; bottom: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.3s;
+    }
+    input:checked + .slider { background: #27ae60; }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    /* ── Loading spinner ── */
+    .spinner {
+      display: flex;
+      justify-content: center;
+      padding: 40px;
+    }
+    .spinner::after {
+      content: "";
+      width: 32px; height: 32px;
+      border: 3px solid #eee;
+      border-top-color: #1a1a1a;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed;
+      bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #1a1a1a;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: transform 0.3s;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>☕ CHINGU Coffee</h1>
+    <div class="subtitle">Barista Dashboard · 15th Floor</div>
+  </div>
+  <div id="refresh-status">
+    <span id="last-refresh">–</span>
+    <span id="next-refresh" style="color:#666">–</span>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('orders')">
+    Orders <span class="badge" id="new-badge" style="display:none">0</span>
+  </div>
+  <div class="tab" onclick="switchTab('menu')">Menu</div>
+</div>
+
+<div id="panel-orders" class="panel active">
+  <div class="spinner" id="orders-spinner"></div>
+  <div id="orders-list" style="display:none"></div>
+</div>
+
+<div id="panel-menu" class="panel">
+  <div class="spinner" id="menu-spinner"></div>
+  <div id="menu-list" style="display:none"></div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────
+  const BASE_ID  = "app4QOjUKa0ZfgXxE";
+  const PAT      = "patamjUS16UK9AHUM.c9493056eb0a6f057432900af4d91e3042e1080796b939a1e8f8f7cc0453ffc5";
+  const HEADERS  = { "Authorization": "Bearer " + PAT, "Content-Type": "application/json" };
+  const REFRESH_INTERVAL = 20; // seconds
+
+  let refreshTimer = null;
+  let countdown    = REFRESH_INTERVAL;
+  let activeTab    = "orders";
+
+  // ── Tab switching ────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll(".tab").forEach((el, i) => {
+      el.classList.toggle("active", (i === 0 && tab === "orders") || (i === 1 && tab === "menu"));
+    });
+    document.getElementById("panel-orders").classList.toggle("active", tab === "orders");
+    document.getElementById("panel-menu").classList.toggle("active", tab === "menu");
+    if (tab === "menu") loadMenu();
+    if (tab === "orders") loadOrders();
+  }
+
+  // ── Airtable API ─────────────────────────────────────────────────────────
+  async function airtableGet(table, params = "") {
+    const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${table}?${params}`, { headers: HEADERS });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+
+  async function airtablePatch(table, id, fields) {
+    const r = await fetch(`https://api.airtable.com/v0/${BASE_ID}/${table}/${id}`, {
+      method: "PATCH",
+      headers: HEADERS,
+      body: JSON.stringify({ fields }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
+
+  // ── Orders ───────────────────────────────────────────────────────────────
+  async function loadOrders() {
+    try {
+      const params = new URLSearchParams({
+        "filterByFormula": "OR(status='New', status='In Progress')",
+        "sort[0][field]":  "created_at",
+        "sort[0][direction]": "asc",
+      });
+      const data = await airtableGet("orders", params.toString());
+      renderOrders(data.records || []);
+      updateRefreshTime();
+    } catch (e) {
+      showToast("⚠️ Failed to load orders");
+      console.error(e);
+    }
+  }
+
+  function renderOrders(records) {
+    const spinner = document.getElementById("orders-spinner");
+    const list    = document.getElementById("orders-list");
+    spinner.style.display = "none";
+    list.style.display = "block";
+
+    const newCount = records.filter(r => r.fields.status === "New").length;
+    const badge = document.getElementById("new-badge");
+    badge.textContent = newCount;
+    badge.style.display = newCount > 0 ? "inline-block" : "none";
+
+    if (records.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="icon">✅</div>
+          <p>No active orders right now.<br>All clear!</p>
+        </div>`;
+      return;
+    }
+
+    // Group by status
+    const newOrders  = records.filter(r => r.fields.status === "New");
+    const inProgress = records.filter(r => r.fields.status === "In Progress");
+
+    let html = "";
+
+    if (newOrders.length) {
+      html += `<div class="section-label">🔔 New (${newOrders.length})</div>`;
+      html += newOrders.map(r => orderCard(r)).join("");
+    }
+    if (inProgress.length) {
+      html += `<div class="section-label">⚡ In Progress (${inProgress.length})</div>`;
+      html += inProgress.map(r => orderCard(r)).join("");
+    }
+
+    list.innerHTML = html;
+  }
+
+  function orderCard(record) {
+    const f   = record.fields;
+    const id  = record.id;
+    const st  = f.status || "New";
+    const stClass = st.replace(" ", "-");
+    const time = f.created_at ? formatTime(f.created_at) : "–";
+    const eta  = f.estimated_time ? `~${f.estimated_time} min` : "";
+
+    const actions = st === "New"
+      ? `<button class="btn btn-start" onclick="updateStatus('${id}', 'In Progress')">▶ Start</button>`
+      : st === "In Progress"
+      ? `<button class="btn btn-undo" onclick="updateStatus('${id}', 'New')">← Undo</button>
+         <button class="btn btn-done" onclick="updateStatus('${id}', 'Done')">✓ Done</button>`
+      : "";
+
+    return `
+      <div class="order-card status-${stClass}" id="card-${id}">
+        <div class="order-header">
+          <div class="order-name">${esc(f.caller_name || "Unknown")}</div>
+          <div class="order-time">
+            <div>${time}</div>
+            <div class="eta">${eta}</div>
+          </div>
+        </div>
+        <div class="order-items">${esc(f.order_summary || "–")}</div>
+        <div class="order-footer">
+          <div class="order-total">₱${f.total_price || 0}</div>
+          <span class="order-status-badge badge-${stClass}">${st}</span>
+        </div>
+        ${actions ? `<div class="order-actions">${actions}</div>` : ""}
+      </div>`;
+  }
+
+  async function updateStatus(id, newStatus) {
+    try {
+      const card = document.getElementById("card-" + id);
+      if (card) card.style.opacity = "0.4";
+      await airtablePatch("orders", id, { status: newStatus });
+      showToast(newStatus === "Done" ? "✅ Order marked done!" : `Order → ${newStatus}`);
+      await loadOrders();
+    } catch (e) {
+      showToast("⚠️ Update failed — please retry");
+      console.error(e);
+    }
+  }
+
+  // ── Menu ─────────────────────────────────────────────────────────────────
+  async function loadMenu() {
+    try {
+      const params = new URLSearchParams({
+        "sort[0][field]": "category",
+        "sort[0][direction]": "asc",
+        "sort[1][field]": "item_name",
+        "sort[1][direction]": "asc",
+      });
+      const data = await airtableGet("menu", params.toString());
+      renderMenu(data.records || []);
+    } catch (e) {
+      showToast("⚠️ Failed to load menu");
+      console.error(e);
+    }
+  }
+
+  function renderMenu(records) {
+    const spinner = document.getElementById("menu-spinner");
+    const list    = document.getElementById("menu-list");
+    spinner.style.display = "none";
+    list.style.display = "block";
+
+    // Group by category
+    const categories = {};
+    records.forEach(r => {
+      const cat = r.fields.category || "Other";
+      if (!categories[cat]) categories[cat] = [];
+      categories[cat].push(r);
+    });
+
+    let html = "";
+    Object.keys(categories).sort().forEach(cat => {
+      html += `<div class="menu-category">
+        <div class="category-name">${esc(cat)}</div>`;
+      categories[cat].forEach(r => {
+        const f   = r.fields;
+        const id  = r.id;
+        const avail = !!f.available;
+        const largePrice = f.description ? f.description.replace("Large ", "L: ") : "";
+        html += `
+          <div class="menu-item ${avail ? "" : "unavailable"}" id="menu-${id}">
+            <div class="menu-item-left">
+              <div class="name">${esc(f.item_name || "–")}</div>
+              <div class="price">M: ₱${f.base_price || 0}${largePrice ? " · " + largePrice : ""}</div>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" ${avail ? "checked" : ""}
+                onchange="toggleAvailable('${id}', this.checked)" />
+              <span class="slider"></span>
+            </label>
+          </div>`;
+      });
+      html += `</div>`;
+    });
+
+    list.innerHTML = html;
+  }
+
+  async function toggleAvailable(id, isAvailable) {
+    try {
+      const el = document.getElementById("menu-" + id);
+      if (el) el.classList.toggle("unavailable", !isAvailable);
+      await airtablePatch("menu", id, { available: isAvailable });
+      showToast(isAvailable ? "✅ Item available" : "🚫 Item hidden from menu");
+    } catch (e) {
+      showToast("⚠️ Failed to update — please retry");
+      console.error(e);
+      // Reload to reset toggle to correct state
+      loadMenu();
+    }
+  }
+
+  // ── Auto-refresh ─────────────────────────────────────────────────────────
+  function startRefreshTimer() {
+    countdown = REFRESH_INTERVAL;
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+      countdown--;
+      document.getElementById("next-refresh").textContent = `Refresh in ${countdown}s`;
+      if (countdown <= 0) {
+        countdown = REFRESH_INTERVAL;
+        if (activeTab === "orders") loadOrders();
+      }
+    }, 1000);
+  }
+
+  function updateRefreshTime() {
+    const now = new Date();
+    document.getElementById("last-refresh").textContent =
+      "Updated " + now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    countdown = REFRESH_INTERVAL;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function formatTime(iso) {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  }
+
+  function esc(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2500);
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadOrders();
+  startRefreshTimer();
+</script>
+</body>
+</html>
