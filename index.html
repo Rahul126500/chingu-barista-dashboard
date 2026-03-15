@@ -406,8 +406,7 @@
       return;
     }
 
-    // Group by status
-    const newOrders  = records.filter(r => r.fields.status === "New");
+    // Group by status (newOrders already defined above)
     const inProgress = records.filter(r => r.fields.status === "In Progress");
 
     let html = "";
