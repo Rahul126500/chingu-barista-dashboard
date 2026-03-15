@@ -75,7 +75,11 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
       border-left: 5px solid #ccc;
     }
-    .order-card.status-New    { border-left-color: #f39c12; }
+    .order-card.status-New    { border-left-color: #f39c12; animation: blink-new 1.2s ease-in-out infinite; }
+    @keyframes blink-new {
+      0%, 100% { background: #fff; }
+      50%      { background: #fff3cd; }
+    }
     .order-card.status-In-Progress { border-left-color: #2980b9; }
     .order-card.status-Done   { border-left-color: #27ae60; opacity: 0.6; }
 
@@ -276,6 +280,52 @@
   let refreshTimer = null;
   let countdown    = REFRESH_INTERVAL;
   let activeTab    = "orders";
+  let knownOrderIds = new Set();
+  let firstLoad     = true;
+  let audioCtx      = null;
+
+  // ── Notification Sound (two-tone chime) ─────────────────────────────────
+  function playNewOrderSound() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      // First tone
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.type = "sine";
+      osc1.frequency.value = 880; // A5
+      gain1.gain.setValueAtTime(0.3, now);
+      gain1.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.3);
+      // Second tone (higher)
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = "sine";
+      osc2.frequency.value = 1175; // D6
+      gain2.gain.setValueAtTime(0.3, now + 0.15);
+      gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.start(now + 0.15);
+      osc2.stop(now + 0.5);
+      // Third tone (even higher for urgency)
+      const osc3 = audioCtx.createOscillator();
+      const gain3 = audioCtx.createGain();
+      osc3.type = "sine";
+      osc3.frequency.value = 1397; // F6
+      gain3.gain.setValueAtTime(0.3, now + 0.35);
+      gain3.gain.exponentialRampToValueAtTime(0.01, now + 0.7);
+      osc3.connect(gain3);
+      gain3.connect(audioCtx.destination);
+      osc3.start(now + 0.35);
+      osc3.stop(now + 0.7);
+    } catch (e) {
+      console.warn("Sound failed:", e);
+    }
+  }
 
   // ── Tab switching ────────────────────────────────────────────────────────
   function switchTab(tab) {
@@ -329,10 +379,23 @@
     spinner.style.display = "none";
     list.style.display = "block";
 
-    const newCount = records.filter(r => r.fields.status === "New").length;
+    const newOrders = records.filter(r => r.fields.status === "New");
+    const newCount = newOrders.length;
     const badge = document.getElementById("new-badge");
     badge.textContent = newCount;
     badge.style.display = newCount > 0 ? "inline-block" : "none";
+
+    // Detect newly arrived orders and play sound
+    const currentIds = new Set(newOrders.map(r => r.id));
+    if (!firstLoad) {
+      const freshOrders = newOrders.filter(r => !knownOrderIds.has(r.id));
+      if (freshOrders.length > 0) {
+        playNewOrderSound();
+        showToast(`🔔 ${freshOrders.length} new order${freshOrders.length > 1 ? "s" : ""}!`);
+      }
+    }
+    knownOrderIds = currentIds;
+    firstLoad = false;
 
     if (records.length === 0) {
       list.innerHTML = `
